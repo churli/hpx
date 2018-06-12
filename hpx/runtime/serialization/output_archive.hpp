@@ -161,8 +161,12 @@ namespace hpx { namespace serialization
         template <typename Future>
         void await_future(Future const & f)
         {
-            buffer_->await_future(
-                *hpx::traits::future_access<Future>::get_shared_state(f));
+            // this should never ber called for futures that have no
+            // shared state
+            auto state =
+                hpx::traits::future_access<Future>::get_shared_state(f);
+            HPX_ASSERT(state);
+            buffer_->await_future(*state);
         }
 
         std::size_t bytes_written() const

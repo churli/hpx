@@ -1,4 +1,4 @@
-//  Copyright (c) 2007-2016 Hartmut Kaiser
+//  Copyright (c) 2007-2018 Hartmut Kaiser
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -15,6 +15,7 @@
 #include <hpx/runtime/components/pinned_ptr.hpp>
 #include <hpx/runtime/naming/address.hpp>
 #include <hpx/traits/is_future.hpp>
+#include <hpx/util/assert.hpp>
 #include <hpx/util/detail/pp/cat.hpp>
 #include <hpx/util/detail/pp/expand.hpp>
 #include <hpx/util/detail/pp/nargs.hpp>
@@ -92,11 +93,16 @@ namespace hpx { namespace actions
             components::pinned_ptr p =
                 components::pinned_ptr::create<Component>(lva);
 
-            auto result =
-                (get_lva<Component>::call(lva)->*F)(std::forward<Ts>(vs)...);
+            auto result = (get_lva<Component>::call(lva)->*F)(
+                std::forward<Ts>(vs)...);
 
-            traits::detail::get_shared_state(result)->set_on_completed(
-                detail::keep_object_pinned{std::move(p)});
+            auto shared_state = traits::detail::get_shared_state(result);
+            if (shared_state)
+            {
+                HPX_ASSERT(result.is_ready());
+                shared_state->set_on_completed(
+                    detail::keep_object_pinned{std::move(p)});
+            }
 
             return result;
         }
@@ -160,8 +166,13 @@ namespace hpx { namespace actions
             auto result = (get_lva<Component const>::call(lva)->*F)(
                 std::forward<Ts>(vs)...);
 
-            traits::detail::get_shared_state(result)->set_on_completed(
-                detail::keep_object_pinned{std::move(p)});
+            auto shared_state = traits::detail::get_shared_state(result);
+            if (shared_state)
+            {
+                HPX_ASSERT(result.is_ready());
+                shared_state->set_on_completed(
+                    detail::keep_object_pinned{std::move(p)});
+            }
 
             return result;
         }

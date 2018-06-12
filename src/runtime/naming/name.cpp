@@ -242,15 +242,19 @@ namespace hpx { namespace naming
             // of the credit splitting is equal to one).
             if (managed == type_)
             {
-                ar.await_future(
+                auto future =
                     split_gid_if_needed(const_cast<id_type_impl&>(*this)).then(
                         hpx::launch::sync,
                         [&ar, this](hpx::future<gid_type> && gid_future)
                         {
                             ar.add_gid(*this, gid_future.get());
                         }
-                    )
-                );
+                    );
+
+                if (!future.is_ready())
+                {
+                    ar.await_future(future);
+                }
                 return;
             }
         }

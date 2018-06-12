@@ -300,7 +300,6 @@ namespace hpx { namespace lcos
                 if (next_future_data.get() != nullptr &&
                     !next_future_data->is_ready())
                 {
-
                     next_future_data->execute_deferred();
 
                     // execute_deferred might have made the future ready

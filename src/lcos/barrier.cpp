@@ -117,9 +117,9 @@ namespace hpx { namespace lcos {
                 // we need to wait on everyone to have its name unregistered,
                 // and hold on to our node long enough...
                 boost::intrusive_ptr<wrapping_type> node = node_;
-                hpx::when_all(f, wait(hpx::launch::async)).then(
+                hpx::when_all(std::move(f), wait(hpx::launch::async)).then(
                     hpx::launch::sync,
-                    [HPX_CAPTURE_MOVE(node)](hpx::future<void> f)
+                    [HPX_CAPTURE_MOVE(node)](hpx::future<void> && f)
                     {
                         HPX_UNUSED(node);
                         f.get();

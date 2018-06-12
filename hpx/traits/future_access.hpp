@@ -8,6 +8,7 @@
 
 #include <hpx/config.hpp>
 #include <hpx/traits/future_traits.hpp>
+#include <hpx/util/optional.hpp>
 
 #include <boost/intrusive_ptr.hpp>
 
@@ -121,14 +122,14 @@ namespace hpx { namespace traits
     struct future_access<lcos::future<R> >
     {
         template <typename SharedState>
-        static lcos::future<R>
+        HPX_FORCEINLINE static lcos::future<R>
         create(boost::intrusive_ptr<SharedState> const& shared_state)
         {
             return lcos::future<R>(shared_state);
         }
 
         template <typename T = void>
-        static lcos::future<R>
+        HPX_FORCEINLINE static lcos::future<R>
         create(typename detail::shared_state_ptr_for<
             lcos::future<lcos::future<R>>>::type const& shared_state)
         {
@@ -136,25 +137,33 @@ namespace hpx { namespace traits
         }
 
         template <typename SharedState>
-        static lcos::future<R> create(
+        HPX_FORCEINLINE static lcos::future<R> create(
             boost::intrusive_ptr<SharedState>&& shared_state)
         {
             return lcos::future<R>(std::move(shared_state));
         }
 
         template <typename T = void>
-        static lcos::future<R> create(typename detail::shared_state_ptr_for<
+        HPX_FORCEINLINE static lcos::future<R>
+        create(typename detail::shared_state_ptr_for<
             lcos::future<lcos::future<R>>>::type&& shared_state)
         {
             return lcos::future<lcos::future<R>>(std::move(shared_state));
         }
 
         template <typename SharedState>
-        static lcos::future<R>
+        HPX_FORCEINLINE static lcos::future<R>
         create(SharedState* shared_state)
         {
             return lcos::future<R>(
                 boost::intrusive_ptr<SharedState>(shared_state));
+        }
+
+        template <typename ... Ts>
+        HPX_FORCEINLINE static lcos::future<R>
+        create_inplace(Ts &&... ts)
+        {
+            return lcos::future<R>(util::in_place, std::forward<Ts>(ts)...);
         }
 
         HPX_FORCEINLINE static
@@ -170,20 +179,36 @@ namespace hpx { namespace traits
         {
             return f.shared_state_.detach();
         }
+
+#if !defined(HPX_HAVE_EXECUTOR_COMPATIBILITY)
+        HPX_FORCEINLINE static
+        typename lcos::future<R>::direct_data_type const&
+        get_direct_value(lcos::future<R> const& f)
+        {
+            return f.direct_data_;
+        }
+
+        HPX_FORCEINLINE static
+        typename lcos::future<R>::direct_data_type &&
+        get_direct_value(lcos::future<R> && f)
+        {
+            return std::move(f.direct_data_);
+        }
+#endif
     };
 
     template <typename R>
     struct future_access<lcos::shared_future<R> >
     {
         template <typename SharedState>
-        static lcos::shared_future<R>
+        HPX_FORCEINLINE static lcos::shared_future<R>
         create(boost::intrusive_ptr<SharedState> const& shared_state)
         {
             return lcos::shared_future<R>(shared_state);
         }
 
         template <typename T = void>
-        static lcos::shared_future<R> create(
+        HPX_FORCEINLINE static lcos::shared_future<R> create(
             typename detail::shared_state_ptr_for<
                 lcos::shared_future<lcos::future<R>>>::type const& shared_state)
         {
@@ -191,14 +216,14 @@ namespace hpx { namespace traits
         }
 
         template <typename SharedState>
-        static lcos::shared_future<R>
+        HPX_FORCEINLINE static lcos::shared_future<R>
         create(boost::intrusive_ptr<SharedState> && shared_state)
         {
             return lcos::shared_future<R>(std::move(shared_state));
         }
 
         template <typename T = void>
-        static lcos::shared_future<R> create(
+        HPX_FORCEINLINE static lcos::shared_future<R> create(
             typename detail::shared_state_ptr_for<
                 lcos::shared_future<lcos::future<R>>>::type&& shared_state)
         {
@@ -207,11 +232,18 @@ namespace hpx { namespace traits
         }
 
         template <typename SharedState>
-        static lcos::shared_future<R>
+        HPX_FORCEINLINE static lcos::shared_future<R>
         create(SharedState* shared_state)
         {
             return lcos::shared_future<R>(
                 boost::intrusive_ptr<SharedState>(shared_state));
+        }
+
+        template <typename ... Ts>
+        HPX_FORCEINLINE static lcos::shared_future<R>
+        create_inplace(Ts &&... ts)
+        {
+            return lcos::future<R>(util::in_place, std::forward<Ts>(ts)...);
         }
 
         HPX_FORCEINLINE static
@@ -227,6 +259,22 @@ namespace hpx { namespace traits
         {
             return f.shared_state_.get();
         }
+
+#if !defined(HPX_HAVE_EXECUTOR_COMPATIBILITY)
+        HPX_FORCEINLINE static
+        typename lcos::shared_future<R>::direct_data_type const&
+        get_direct_value(lcos::shared_future<R> const& f)
+        {
+            return f.direct_data_;
+        }
+
+        HPX_FORCEINLINE static
+        typename lcos::shared_future<R>::direct_data_type &&
+        get_direct_value(lcos::shared_future<R> && f)
+        {
+            return std::move(f.direct_data_);
+        }
+#endif
     };
 
     ///////////////////////////////////////////////////////////////////////////

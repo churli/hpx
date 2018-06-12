@@ -48,8 +48,11 @@ namespace hpx { namespace detail
     {
         if (id.get_management_type() == naming::id_type::managed)
         {
-            traits::detail::get_shared_state(f)->set_on_completed(
-                hpx::detail::keep_id_alive(id));
+            auto const& state = traits::detail::get_shared_state(f);
+            if (state)
+            {
+                state->set_on_completed(hpx::detail::keep_id_alive(id));
+            }
         }
         return std::move(f);
     }
@@ -73,8 +76,12 @@ namespace hpx { namespace detail
     {
         if (id.get_management_type() == naming::id_type::managed)
         {
-            traits::detail::get_shared_state(f)->set_on_completed(
-                hpx::detail::keep_id_and_ptr_alive(id, std::move(p)));
+            auto const& state = traits::detail::get_shared_state(f);
+            if (state)
+            {
+                state->set_on_completed(
+                    hpx::detail::keep_id_and_ptr_alive(id, std::move(p)));
+            }
         }
         return std::move(f);
     }

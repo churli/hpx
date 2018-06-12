@@ -31,10 +31,14 @@ namespace lcos {
                 typename std::decay<T>::type>::value>::type* = nullptr>
         bool async_visit_future(T&& current)
         {
+            if (current.is_ready())
+            {
+                return true;
+            }
+
             auto const& state =
                 traits::detail::get_shared_state(std::forward<T>(current));
-
-            if ((state.get() == nullptr) || state->is_ready())
+            if (!state)
             {
                 return true;
             }
@@ -52,12 +56,18 @@ namespace lcos {
                 typename std::decay<T>::type>::value>::type* = nullptr>
         void async_detach_future(T&& current, N&& next)
         {
-            auto const& state =
-                traits::detail::get_shared_state(std::forward<T>(current));
-
-            // Attach a continuation to this future which will
-            // re-evaluate it and continue to the next argument (if any).
-            state->set_on_completed(util::deferred_call(std::forward<N>(next)));
+            auto const& state = traits::detail::get_shared_state(current);
+            if (state)
+            {
+                // Attach a continuation to this future which will
+                // re-evaluate it and continue to the next argument (if any).
+                state->set_on_completed(util::deferred_call(std::forward<N>(next)));
+            }
+            else
+            {
+                // invoke continuation directly
+                std::forward<N>(next)();
+            }
         }
 
         /// Acquire a future range from the given begin and end iterator

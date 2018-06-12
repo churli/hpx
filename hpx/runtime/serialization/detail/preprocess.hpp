@@ -109,7 +109,7 @@ namespace hpx { namespace serialization { namespace detail
         }
 
         template <typename F>
-        void operator()(F f)
+        void operator()(F && f)
         {
             bool set_promise = false;
             {
@@ -123,10 +123,20 @@ namespace hpx { namespace serialization { namespace detail
                 promise_.set_value();
 
             hpx::future<void> fut = promise_.get_future();
-            // we don't call f directly to avoid possible stack overflow.
-            auto shared_state_ = hpx::traits::future_access<hpx::future<void> >::
+
+            // we try not to call f directly to avoid possible stack overflow.
+            auto shared_state = hpx::traits::future_access<hpx::future<void>>::
                 get_shared_state(fut);
-            shared_state_->set_on_completed(std::move(f));
+            if (shared_state)
+            {
+                shared_state->set_on_completed(std::forward<F>(f));
+            }
+#if !defined(HPX_HAVE_EXECUTOR_COMPATIBILITY)
+            {
+                HPX_ASSERT(fut.is_ready());
+                std::forward<F>(f)();
+            }
+#endif
         }
 
         split_gids_map split_gids_;

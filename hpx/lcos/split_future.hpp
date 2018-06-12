@@ -105,9 +105,27 @@ namespace hpx { namespace lcos
                 typename traits::detail::shared_state_ptr_for<T>::type const&
                     state)
             {
-                try {
+                try
+                {
                     typedef typename traits::future_traits<T>::type result_type;
                     result_type* result = state->get_result();
+                    this->base_type::set_value(
+                        std::move(hpx::util::get<I>(*result)));
+                }
+                catch (...)
+                {
+                    this->base_type::set_exception(std::current_exception());
+                }
+            }
+
+            template <std::size_t I, typename Future>
+            void on_ready(Future& f)
+            {
+                try
+                {
+                    HPX_ASSERT(f.is_ready());
+                    auto const& result =
+                        hpx::traits::future_access<Future>::get_direct_value(f);
                     this->base_type::set_value(
                         std::move(hpx::util::get<I>(*result)));
                 }
@@ -131,10 +149,17 @@ namespace hpx { namespace lcos
                 shared_state_ptr const& state =
                     hpx::traits::detail::get_shared_state(future);
 
-                state->execute_deferred();
-                state->set_on_completed(util::deferred_call(
-                    &split_nth_continuation::on_ready<I, Future>,
-                    std::move(this_), state));
+                if (state)
+                {
+                    state->execute_deferred();
+                    state->set_on_completed(util::deferred_call(
+                        &split_nth_continuation::on_ready<I, Future>,
+                        std::move(this_), state));
+                }
+                else
+                {
+                    on_ready<I, Future>(future);
+                }
             }
         };
 

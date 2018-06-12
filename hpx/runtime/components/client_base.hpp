@@ -24,6 +24,7 @@
 #include <hpx/util/always_void.hpp>
 #include <hpx/util/assert.hpp>
 #include <hpx/util/bind_back.hpp>
+#include <hpx/util/optional.hpp>
 
 #include <boost/intrusive_ptr.hpp>
 
@@ -96,6 +97,14 @@ namespace hpx { namespace traits
                     boost::intrusive_ptr<SharedState>(shared_state)));
             }
 
+            template <typename ... Ts>
+            HPX_FORCEINLINE static Derived
+            create_inplace(Ts &&... ts)
+            {
+                return Derived(future<id_type>(
+                    util::in_place, std::forward<Ts>(ts)...));
+            }
+
             HPX_FORCEINLINE static
             typename traits::detail::shared_state_ptr<id_type>::type const&
             get_shared_state(Derived const& client)
@@ -109,6 +118,15 @@ namespace hpx { namespace traits
             {
                 return f.shared_state_.get();
             }
+
+#if !defined(HPX_HAVE_EXECUTOR_COMPATIBILITY)
+            HPX_FORCEINLINE static
+            util::optional<naming::id_type>
+            get_direct_value(Derived const& f)
+            {
+                return {};
+            }
+#endif
         };
 
         ///////////////////////////////////////////////////////////////////////
@@ -285,19 +303,33 @@ namespace hpx { namespace components
             shared_state_->set_value(std::move(id));
         }
 
+    private:
+        template <typename Future>
+        static boost::intrusive_ptr<shared_state_type> init(Future && f)
+        {
+            auto shared_state = hpx::traits::future_access<
+                typename std::decay<Future>::type>::get_shared_state(f);
+
+            if (!shared_state && f.valid())
+            {
+                HPX_ASSERT(f.is_ready());
+
+                shared_state.reset(new shared_state_type);
+                shared_state->set_value(f.get());
+            }
+
+            return shared_state;
+        }
+
+    public:
         explicit client_base(shared_future<id_type> const& f) noexcept
-          : shared_state_(
-                hpx::traits::future_access<future_type>::
-                    get_shared_state(f))
+          : shared_state_(init(f))
         {}
         explicit client_base(shared_future<id_type> && f) noexcept
-          : shared_state_(
-                hpx::traits::future_access<future_type>::
-                    get_shared_state(std::move(f)))
+          : shared_state_(init(std::move(f)))
         {}
         explicit client_base(future<id_type> && f) noexcept
-          : shared_state_(hpx::traits::future_access<future_type>::
-                    get_shared_state(std::move(f)))
+          : shared_state_(init(std::move(f)))
         {}
 
         client_base(client_base const& rhs) noexcept
@@ -309,11 +341,31 @@ namespace hpx { namespace components
             rhs.shared_state_ = nullptr;
         }
 
+    private:
+        template <typename Derived>
+        static boost::intrusive_ptr<shared_state_type>
+        unwrap(future<Derived> && f)
+        {
+            if (!hpx::traits::future_access<future<Derived>>::
+                    get_shared_state(f))
+            {
+                HPX_ASSERT(f.is_ready());
+
+                boost::intrusive_ptr<shared_state_type> shared_state(
+                    new shared_state_type);
+                shared_state->set_value(f.get().get_id());
+                return shared_state;
+            }
+
+            return lcos::detail::unwrap_impl(std::move(f));
+        }
+
+    public:
         // A future to a client_base can be unwrap to represent the
         // client_base directly as a client_base is semantically a future to
         // the id of the referenced object.
         client_base(future<Derived> && d)
-          : shared_state_(d.valid() ? lcos::detail::unwrap(std::move(d)) : nullptr)
+          : shared_state_(unwrap(std::move(d)))
         {}
 
         ~client_base() = default;
@@ -334,20 +386,17 @@ namespace hpx { namespace components
 
         client_base& operator=(shared_future<id_type> const& f)
         {
-            shared_state_ = hpx::traits::future_access<future_type>::
-                get_shared_state(f);
+            shared_state_ = init(f);
             return *this;
         }
         client_base& operator=(shared_future<id_type> && f)
         {
-            shared_state_ = hpx::traits::future_access<future_type>::
-                get_shared_state(std::move(f));
+            shared_state_ = init(std::move(f));
             return *this;
         }
         client_base& operator=(future<id_type> && f)
         {
-            shared_state_ = hpx::traits::future_access<future_type>::
-                get_shared_state(std::move(f));
+            shared_state_ = init(std::move(f));
             return *this;
         }
 

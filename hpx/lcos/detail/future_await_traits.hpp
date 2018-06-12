@@ -55,13 +55,21 @@ namespace hpx { namespace lcos { namespace detail
     {
         // f.then([=](future<T> result) {});
         auto st = traits::detail::get_shared_state(f);
-        st->set_on_completed(
-            [=]() mutable
-            {
-                if (st->has_exception())
-                    rh.promise().set_exception(st->get_exception_ptr());
-                rh();
-            });
+        if (st)
+        {
+            st->set_on_completed(
+                [=]() mutable
+                {
+                    if (st->has_exception())
+                        rh.promise().set_exception(st->get_exception_ptr());
+                    rh();
+                });
+        }
+        else
+        {
+            HPX_ASSERT(f.is_ready());
+            rh();
+        }
     }
 
     template <typename T>
@@ -97,13 +105,21 @@ namespace hpx { namespace lcos { namespace detail
     {
         // f.then([=](shared_future<T> result) {})
         auto st = traits::detail::get_shared_state(f);
-        st->set_on_completed(
-            [=]() mutable
-            {
-                if (st->has_exception())
-                    rh.promise().set_exception(st->get_exception_ptr());
-                rh();
-            });
+        if (st)
+        {
+            st->set_on_completed(
+                [=]() mutable
+                {
+                    if (st->has_exception())
+                        rh.promise().set_exception(st->get_exception_ptr());
+                    rh();
+                });
+        }
+        else
+        {
+            HPX_ASSERT(f.is_ready());
+            rh();
+        }
     }
 
     template <typename T>

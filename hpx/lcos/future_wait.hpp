@@ -164,9 +164,16 @@ namespace hpx { namespace lcos
                     shared_state_ptr current =
                         traits::detail::get_shared_state(lazy_values_[i]);
 
-                    current->execute_deferred();
-                    current->set_on_completed(
-                        util::bind(&wait_each::on_future_ready, this, i, id));
+                    if (current)
+                    {
+                        current->execute_deferred();
+                        current->set_on_completed(
+                            util::bind(&wait_each::on_future_ready, this, i, id));
+                    }
+                    else
+                    {
+                        on_future_ready(i, id);
+                    }
                 }
 
                 // If all of the requested futures are already set then our
